@@ -62,19 +62,53 @@ def netvlad_model(num_clusters=32):
 
     return model, dim
 
+def accuracy(predictions, gt):
+    accVec = np.equal(predictions, gt)
+    accu = np.sum(accVec) / accVec.shape[0]  * 100
+    print(f"predictions: {predictions}") 
+    print(f"Ground truth: {gt}")
+    print(f"DONE FOR NOW: Getting {accu} % accuracy.")
+
 if __name__=='__main__':
+    # 1. Given manual info
     num_clusters=32
     model, dim_ind = netvlad_model(num_clusters)
     dim_descriptor_vlad = (dim_ind*num_clusters)
 
-    #base_path = "/media/shubodh/DATA/OneDrive/rrc_projects/2021/SOTA_repos_NetVLAD-LoFTR-PatchNetVLAD-etc/all_NetVLAD/NetVLAD-pytorch/sample_graphVPR_data/"
-    base_path = "./sample_graphVPR_data/"
-    base_rooms = ['01', '02', '03', '04']
+    sample_path = "./sample_graphVPR_data/"
+    base_shublocal_path = "/home/shubodh/Downloads/data-non-onedrive/RIO10_data/"
+    base_simserver_path = "/home/shubodh/hdd1/Shubodh/Downloads/data-non-onedrive/RIO10_data/"
+
+    sample_rooms = ['01', '02', '03', '04']
+    rescan_rooms_ids_small = ['01_01', '01_02', '02_01', '02_02']
+    rescan_rooms_ids = ['01_01', '01_02', '02_01', '02_02', '03_01', '03_02', '04_01', '04_02', '05_01', '05_02',
+                        '06_01', '06_02', '07_01', '07_02', '08_01', '08_02', '09_01', '09_02', '10_01', '10_02']
+    gt = np.array([1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,17,16,19,18])
+    gt_small = np.array([1,0,3,2])
+
+    # 2. TO SET: Set just the next line
+    base_path = base_shublocal_path 
+
+    # 3. Code starts
+    if base_path == sample_path:
+        base_rooms = sample_rooms 
+        gt = gt_small
+    elif base_path == base_shublocal_path:
+        base_rooms=rescan_rooms_ids_small
+        gt = gt_small
+    elif base_path == base_simserver_path:
+        base_rooms = rescan_rooms_ids
+
     featVect_tor = torch.zeros((len(base_rooms), dim_descriptor_vlad)).cuda()
-    images1, images2, images3, images4 = [], [], [], []
-    images_all = [images1, images2, images3, images4]
     for i, base_room in enumerate(base_rooms):
-        for img in glob.glob(base_path + base_room + "/*.jpg"):
+        if base_path == sample_path:
+            full_path = base_path + base_room
+        else:
+            full_path= base_path+ "scene"+ base_rooms[i][:2]+"/semantics" +base_rooms[i][:2]+"/seq"+ base_rooms[i]+ "/"
+            print(full_path)
+            print("CURRENTLY HERE. NOw only sampling of images remaining")
+            sys.exit()
+        for img in glob.glob(full_path + "/*.jpg"):
             rgb= cv2.imread(img)
             rgb_np = np.moveaxis(np.array(rgb), -1, 0)
             rgb_np = rgb_np[np.newaxis, :]
@@ -82,6 +116,6 @@ if __name__=='__main__':
             output = model(x)
             featVect_tor[i] = featVect_tor[i] + output
     featVect = featVect_tor.cpu().detach().numpy()
-    mInds1 = getMatchInds(featVect, featVect, topK=2)
-    print(mInds1)
-    print("successfully reached end")
+    mInds = getMatchInds(featVect, featVect, topK=2)
+    predictions = mInds[1]
+    accuracy(predictions, gt)
