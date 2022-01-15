@@ -11,6 +11,7 @@ from scipy.spatial.distance import cdist
 import cv2
 import numpy as np
 import glob
+from pathlib import Path
 
 import sys
 
@@ -69,6 +70,30 @@ def accuracy(predictions, gt):
     print(f"Ground truth: {gt}")
     print(f"DONE FOR NOW: Getting {accu} % accuracy.")
 
+def topoNetVLAD(base_path, base_rooms, dim_descriptor_vlad, sample_path):
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    featVect_tor = torch.zeros((len(base_rooms), dim_descriptor_vlad)).cuda()
+    for i, base_room in enumerate(base_rooms):
+        if base_path == sample_path:
+            full_path_str = base_path + base_room
+        else:
+            full_path_str= base_path+ "scene"+ base_room[:2]+"/seq" +base_room[:2]+"/seq"+ base_room+ "/"
+        full_path = Path(full_path_str)
+        img_files = sorted(list(full_path.glob("*color.jpg")))
+        for img in img_files:
+            rgb= cv2.imread(str(img))
+            rgb_np = np.moveaxis(np.array(rgb), -1, 0)
+            rgb_np = rgb_np[np.newaxis, :]
+            x = torch.from_numpy(rgb_np).float().cuda()
+            output = model(x) #batch_size = 1 currently, TODO: increase batch_size and change following code accordingly.
+            featVect_tor[i] = featVect_tor[i] + output
+            #print(img)
+            #print("CURRENTLY HERE. NOw only sampling of images remaining")
+        #sys.exit()
+    featVect = featVect_tor.cpu().detach().numpy()
+    return featVect
+
 if __name__=='__main__':
     # 1. Given manual info
     num_clusters=32
@@ -87,7 +112,7 @@ if __name__=='__main__':
     gt_small = np.array([1,0,3,2])
 
     # 2. TO SET: Set just the next line
-    base_path = base_shublocal_path 
+    base_path =sample_path #base_shublocal_path # base_shublocal_path #base_simserver_path
 
     # 3. Code starts
     if base_path == sample_path:
@@ -99,23 +124,7 @@ if __name__=='__main__':
     elif base_path == base_simserver_path:
         base_rooms = rescan_rooms_ids
 
-    featVect_tor = torch.zeros((len(base_rooms), dim_descriptor_vlad)).cuda()
-    for i, base_room in enumerate(base_rooms):
-        if base_path == sample_path:
-            full_path = base_path + base_room
-        else:
-            full_path= base_path+ "scene"+ base_rooms[i][:2]+"/semantics" +base_rooms[i][:2]+"/seq"+ base_rooms[i]+ "/"
-            print(full_path)
-            print("CURRENTLY HERE. NOw only sampling of images remaining")
-            sys.exit()
-        for img in glob.glob(full_path + "/*.jpg"):
-            rgb= cv2.imread(img)
-            rgb_np = np.moveaxis(np.array(rgb), -1, 0)
-            rgb_np = rgb_np[np.newaxis, :]
-            x = torch.from_numpy(rgb_np).float().cuda()
-            output = model(x)
-            featVect_tor[i] = featVect_tor[i] + output
-    featVect = featVect_tor.cpu().detach().numpy()
+    featVect = topoNetVLAD(base_path, base_rooms, dim_descriptor_vlad, sample_path)
     mInds = getMatchInds(featVect, featVect, topK=2)
     predictions = mInds[1]
     accuracy(predictions, gt)
