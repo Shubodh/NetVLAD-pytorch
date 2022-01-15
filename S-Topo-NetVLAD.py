@@ -4,7 +4,7 @@ from torch.autograd import Variable
 
 from netvlad import NetVLAD
 from netvlad import EmbedNet
-from hard_triplet_loss import HardTripletLoss
+#from hard_triplet_loss import HardTripletLoss
 from torchvision.models import resnet18
 from scipy.spatial.distance import cdist
 
@@ -14,6 +14,8 @@ import glob
 from pathlib import Path
 
 import sys
+
+from utils import read_image
 
 def getMatchInds(ft_ref,ft_qry,topK=1,metric='cosine'):
     """
@@ -70,6 +72,7 @@ def accuracy(predictions, gt):
     print(f"Ground truth: {gt}")
     print(f"DONE FOR NOW: Getting {accu} % accuracy.")
 
+@torch.no_grad()
 def topoNetVLAD(base_path, base_rooms, dim_descriptor_vlad, sample_path):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -82,7 +85,9 @@ def topoNetVLAD(base_path, base_rooms, dim_descriptor_vlad, sample_path):
         full_path = Path(full_path_str)
         img_files = sorted(list(full_path.glob("*color.jpg")))
         for img in img_files:
-            rgb= cv2.imread(str(img))
+            rgb = read_image(img)
+            #rgb = rgb.astype(np.float32)
+            #rgb= cv2.imread(str(img), cv2.IMREAD_COLOR)
             rgb_np = np.moveaxis(np.array(rgb), -1, 0)
             rgb_np = rgb_np[np.newaxis, :]
             x = torch.from_numpy(rgb_np).float().cuda()
@@ -103,6 +108,7 @@ if __name__=='__main__':
     sample_path = "./sample_graphVPR_data/"
     base_shublocal_path = "/home/shubodh/Downloads/data-non-onedrive/RIO10_data/"
     base_simserver_path = "/home/shubodh/hdd1/Shubodh/Downloads/data-non-onedrive/RIO10_data/"
+    base_adaserver_path = "/data/RIO10_data/"
 
     sample_rooms = ['01', '02', '03', '04']
     rescan_rooms_ids_small = ['01_01', '01_02', '02_01', '02_02']
