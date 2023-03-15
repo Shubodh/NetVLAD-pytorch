@@ -95,7 +95,8 @@ def topoNetVLAD(base_path, base_rooms, dim_descriptor_vlad, sample_path):
             featVect_tor[i] = featVect_tor[i] + output
             #print(img)
             #print("CURRENTLY HERE. NOw only sampling of images remaining")
-        #sys.exit()
+        #divide featVect_tor[i] by number of images in the room
+        featVect_tor[i] = featVect_tor[i] / len(img_files)
     featVect = featVect_tor.cpu().detach().numpy()
     return featVect
 
